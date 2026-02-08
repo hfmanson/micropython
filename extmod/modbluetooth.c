@@ -47,10 +47,6 @@
 #error l2cap channels require synchronous modbluetooth events
 #endif
 
-#if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING && !MICROPY_PY_BLUETOOTH_USE_SYNC_EVENTS
-#error pairing and bonding require synchronous modbluetooth events
-#endif
-
 #define MP_BLUETOOTH_CONNECT_DEFAULT_SCAN_DURATION_MS 2000
 
 #define MICROPY_PY_BLUETOOTH_MAX_EVENT_DATA_TUPLE_LEN 5
@@ -1116,6 +1112,27 @@ STATIC mp_obj_t bluetooth_ble_invoke_irq(mp_obj_t none_in) {
             // conn_handle, value_handle, status
             ringbuf_extract(&o->ringbuf, data_tuple, 3, 0, NULL, 0, NULL, NULL);
         #endif // MICROPY_PY_BLUETOOTH_ENABLE_GATT_CLIENT
+        #if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
+        } else if (event == MP_BLUETOOTH_IRQ_ENCRYPTION_UPDATE) {
+			// Create a Python tuple with 5 elements
+			mp_obj_tuple_t *t = mp_obj_new_tuple(5, NULL);
+
+			// Extract:
+			//   1 × u16  → t->items[0]
+			//   4 × u8   → t->items[1..4]
+			ringbuf_extract(
+				&o->ringbuf,
+				t,          // tuple to fill
+				1,          // n_u16
+				4,          // n_u8
+				NULL,       // bytes_addr
+				0,          // n_i8
+				NULL,       // uuid
+				NULL        // bytes_data
+			);
+
+			data_tuple = MP_OBJ_FROM_PTR(t);
+        #endif // MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
         }
 
         MICROPY_PY_BLUETOOTH_EXIT
@@ -1433,6 +1450,45 @@ void mp_bluetooth_gap_on_connection_update(uint16_t conn_handle, uint16_t conn_i
     }
     schedule_ringbuf(atomic_state);
 }
+
+#if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
+
+void mp_bluetooth_gatts_on_encryption_update(
+    uint16_t conn_handle,
+    bool encrypted,
+    bool authenticated,
+    bool bonded,
+    uint8_t key_size
+) {
+    MICROPY_PY_BLUETOOTH_ENTER
+    mp_obj_bluetooth_ble_t *o = MP_OBJ_TO_PTR(MP_STATE_VM(bluetooth));
+
+    // Payload: conn_handle (2) + encrypted (1) + authenticated (1)
+    //          + bonded (1) + key_size (1) = 6 bytes
+    if (enqueue_irq(o, 2 + 1 + 1 + 1 + 1, MP_BLUETOOTH_IRQ_ENCRYPTION_UPDATE)) {
+        ringbuf_put16(&o->ringbuf, conn_handle);
+        ringbuf_put(&o->ringbuf, encrypted ? 1 : 0);
+        ringbuf_put(&o->ringbuf, authenticated ? 1 : 0);
+        ringbuf_put(&o->ringbuf, bonded ? 1 : 0);
+        ringbuf_put(&o->ringbuf, key_size);
+    }
+
+    schedule_ringbuf(atomic_state);
+}
+
+// conn_handle, action, passkey
+void mp_bluetooth_gap_on_passkey_action(uint16_t conn_handle, uint8_t action, mp_int_t passkey) {
+    MICROPY_PY_BLUETOOTH_ENTER
+    mp_obj_bluetooth_ble_t *o = MP_OBJ_TO_PTR(MP_STATE_VM(bluetooth));
+    if (enqueue_irq(o, 2 + 1 + 4, MP_BLUETOOTH_IRQ_PASSKEY_ACTION)) {
+        ringbuf_put16(&o->ringbuf, conn_handle);
+        ringbuf_put(&o->ringbuf, action);
+        ringbuf_put32(&o->ringbuf, passkey);
+    }
+    schedule_ringbuf(atomic_state);
+}
+
+#endif // MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
 
 void mp_bluetooth_gatts_on_write(uint16_t conn_handle, uint16_t value_handle) {
     MICROPY_PY_BLUETOOTH_ENTER

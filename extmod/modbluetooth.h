@@ -34,6 +34,13 @@
 #include "py/objlist.h"
 #include "py/ringbuf.h"
 
+// Match your existing SECRET_TYPE_OUR_IRK etc.
+#define SECRET_TYPE_OUR_IRK        10
+#define SECRET_TYPE_PEER_IRK       11
+#define SECRET_TYPE_LTK            12
+#define SECRET_TYPE_CSRK           13
+// ...whatever MicroPython actually uses
+
 // Port specific configuration.
 #ifndef MICROPY_PY_BLUETOOTH_RINGBUF_SIZE
 #define MICROPY_PY_BLUETOOTH_RINGBUF_SIZE (128)

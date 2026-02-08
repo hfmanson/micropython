@@ -71,3 +71,20 @@ int ringbuf_put16(ringbuf_t *r, uint16_t v) {
     r->iput = iput_b;
     return 0;
 }
+
+int ringbuf_put32(ringbuf_t *r, uint32_t v) {
+    // Write 4 bytes: big‑endian
+    for (int i = 0; i < 4; i++) {
+        uint8_t b = (v >> (24 - 8 * i)) & 0xff;
+        uint32_t iput_a = r->iput + 1;
+        if (iput_a == r->size) {
+            iput_a = 0;
+        }
+        if (iput_a == r->iget) {
+            return -1; // buffer full
+        }
+        r->buf[r->iput] = b;
+        r->iput = iput_a;
+    }
+    return 0;
+}

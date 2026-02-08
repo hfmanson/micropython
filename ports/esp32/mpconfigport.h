@@ -10,6 +10,9 @@
 #include "freertos/FreeRTOS.h"
 #include "driver/i2s.h"
 
+// !!--- CHANGES HERE FOR OUR FIRMARE ---!!
+#include "mpconfigoverrides.h"
+
 // object representation and NLR handling
 #define MICROPY_OBJ_REPR                    (MICROPY_OBJ_REPR_A)
 #define MICROPY_NLR_SETJMP                  (1)
@@ -134,11 +137,13 @@
 #define MICROPY_PY_THREAD_GIL_VM_DIVISOR    (32)
 
 // extended modules
+#undef MICROPY_PY_BLUETOOTH
 #ifndef MICROPY_PY_BLUETOOTH
 #define MICROPY_PY_BLUETOOTH                (1)
 #define MICROPY_PY_BLUETOOTH_ENABLE_CENTRAL_MODE (1)
 #define MICROPY_BLUETOOTH_NIMBLE            (1)
 #define MICROPY_BLUETOOTH_NIMBLE_BINDINGS_ONLY (1)
+#define MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING (1)
 #endif
 #define MICROPY_PY_UASYNCIO                 (1)
 #define MICROPY_PY_UCTYPES                  (1)
@@ -183,7 +188,7 @@
 #define MICROPY_PY_NETWORK_WLAN             (1)
 #endif
 #ifndef MICROPY_HW_ENABLE_SDCARD
-#define MICROPY_HW_ENABLE_SDCARD            (1)
+#define MICROPY_HW_ENABLE_SDCARD            (0)
 #endif
 #define MICROPY_HW_SOFTSPI_MIN_DELAY        (0)
 #define MICROPY_HW_SOFTSPI_MAX_BAUDRATE     (ets_get_cpu_frequency() * 1000000 / 200) // roughly
@@ -237,7 +242,7 @@ extern const struct _mp_obj_module_t mp_module_onewire;
     { MP_OBJ_NEW_QSTR(MP_QSTR_machine), (mp_obj_t)&mp_module_machine }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR_network), (mp_obj_t)&mp_module_network }, \
     { MP_OBJ_NEW_QSTR(MP_QSTR__onewire), (mp_obj_t)&mp_module_onewire }, \
-
+    MICROPY_CUSTOM_BUILTIN_MODULES
 #define MP_STATE_PORT MP_STATE_VM
 
 struct _machine_timer_obj_t;

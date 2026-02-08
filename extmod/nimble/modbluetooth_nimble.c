@@ -57,7 +57,7 @@
 #define MICROPY_PY_BLUETOOTH_DEFAULT_GAP_NAME "MPY NIMBLE"
 #endif
 
-#define DEBUG_printf(...) // printf("nimble: " __VA_ARGS__)
+#define DEBUG_printf(...) printf("nimble: " __VA_ARGS__)
 
 #define ERRNO_BLUETOOTH_NOT_ACTIVE MP_ENODEV
 
@@ -269,11 +269,14 @@ STATIC void set_random_address(bool nrpa) {
 
 #if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
 // For ble_hs_pvcy_set_our_irk
-#include "nimble/host/src/ble_hs_pvcy_priv.h"
+//#include "nimble/host/src/ble_hs_pvcy_priv.h"
+int ble_hs_pvcy_set_our_irk(const uint8_t *irk);
 // For ble_hs_hci_util_rand
-#include "nimble/host/src/ble_hs_hci_priv.h"
+//#include "nimble/host/src/ble_hs_hci_priv.h"
+int ble_hs_hci_util_rand(void *dst, int len);
 // For ble_hs_misc_restore_irks
-#include "nimble/host/src/ble_hs_priv.h"
+//#include "nimble/host/src/ble_hs_priv.h"
+int ble_hs_misc_restore_irks(void);
 
 // Must be distinct to BLE_STORE_OBJ_TYPE_ in ble_store.h.
 #define SECRET_TYPE_OUR_IRK 10
@@ -425,17 +428,27 @@ STATIC int commmon_gap_event_cb(struct ble_gap_event *event, void *arg) {
             return 0;
         }
 
-        case BLE_GAP_EVENT_ENC_CHANGE: {
-            DEBUG_printf("commmon_gap_event_cb: enc change: status=%d\n", event->enc_change.status);
+		case BLE_GAP_EVENT_ENC_CHANGE: {
+			DEBUG_printf("peripheral_gap_event_cb: ENC_CHANGE status=%d\n",
+						 event->enc_change.status);
+
             #if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
-            if (ble_gap_conn_find(event->enc_change.conn_handle, &desc) == 0) {
-                mp_bluetooth_gatts_on_encryption_update(event->conn_update.conn_handle,
-                    desc.sec_state.encrypted, desc.sec_state.authenticated,
-                    desc.sec_state.bonded, desc.sec_state.key_size);
-            }
+			// NimBLE gives you the new encryption state in event->enc_change
+			// but you need to fetch the full connection descriptor to get
+			// authenticated/bonded/key_size.
+			struct ble_gap_conn_desc desc;
+			if (ble_gap_conn_find(event->enc_change.conn_handle, &desc) == 0) {
+				mp_bluetooth_gatts_on_encryption_update(
+					event->enc_change.conn_handle,
+					desc.sec_state.encrypted,
+					desc.sec_state.authenticated,
+					desc.sec_state.bonded,
+					desc.sec_state.key_size
+				);
+			}
             #endif
-            return 0;
-        }
+			return 0;
+		}
 
         default:
             DEBUG_printf("commmon_gap_event_cb: unknown type %d\n", event->type);
@@ -1191,6 +1204,10 @@ STATIC int peripheral_gap_event_cb(struct ble_gap_event *event, void *arg) {
                 ble_gap_conn_find(event->connect.conn_handle, &desc);
                 reverse_addr_byte_order(addr, desc.peer_id_addr.val);
                 mp_bluetooth_gap_on_connected_disconnected(MP_BLUETOOTH_IRQ_PERIPHERAL_CONNECT, event->connect.conn_handle, desc.peer_id_addr.type, addr);
+				// 🔐 Request secure connection (pairing + encryption)
+				#if MICROPY_PY_BLUETOOTH_ENABLE_PAIRING_BONDING
+				ble_gap_security_initiate(event->connect.conn_handle);
+				#endif
             } else {
                 // Connection failed.
                 mp_bluetooth_gap_on_connected_disconnected(MP_BLUETOOTH_IRQ_PERIPHERAL_DISCONNECT, event->connect.conn_handle, 0xff, addr);
