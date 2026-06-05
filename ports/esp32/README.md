@@ -77,10 +77,10 @@ The steps to take are summarised below.
 To check out a copy of the IDF use git clone:
 
 ```bash
-$ git clone -b v5.5.1 --recursive https://github.com/espressif/esp-idf.git
+$ git clone -b v5.5.2 --recursive https://github.com/espressif/esp-idf.git
 ```
 
-You can replace `v5.5.1` with any other supported version.
+You can replace `v5.5.2` with any other supported version.
 (You don't need a full recursive clone; see the `ci_esp32_setup` function in
 `tools/ci.sh` in this repository for more detailed set-up commands.)
 
@@ -89,7 +89,7 @@ MicroPython and update the submodules using:
 
 ```bash
 $ cd esp-idf
-$ git checkout v5.5.1
+$ git checkout v5.5.2
 $ git submodule update --init --recursive
 ```
 
