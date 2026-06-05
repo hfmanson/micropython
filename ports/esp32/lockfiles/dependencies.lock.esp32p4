@@ -273,7 +273,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.5.1
+    version: 5.5.2
   nicolaielectronics/bmi270:
     component_hash: 4eba2761d6fc2ea032c3e5321e594680f0a47a53ae76323a129628e16af38a0c
     dependencies: []
